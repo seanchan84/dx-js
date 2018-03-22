@@ -9,7 +9,6 @@ For Example:
 ```
 document.getElementByID("a");
 ```
-
 equals to :
 
 [dx]
