@@ -17,7 +17,7 @@ obj.id = "abc";
 obj.innerHTML = "context here.";
 
 ```
-equals to :
+equals to:
 
 [dx]
 ```
@@ -27,5 +27,9 @@ newdom("div");
 
 //create an element with attributes By Chains
 var obj = newdom("div").attr("id","abc").html("context here.");
+
+//Add <Script> & <Style>
+addScript("js/test.js");
+addStyle("{color:red;}","mainStyle"); //add style in <style id="mainStyle"></style>
 
 ```
