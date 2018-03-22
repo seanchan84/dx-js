@@ -3,6 +3,10 @@ dx libaray
 
 **This libaray is for simplifying the native javascript. It includes selector, ajax, json method, etc.**
 
+**Selector**
+
+dx libaray just make some navtive javascript more simple.
+
 For Example:
 
 [native]
@@ -33,8 +37,10 @@ addScript("js/test.js");
 addStyle("{color:red;}","mainStyle"); //add style in <style id="mainStyle"></style>
 
 ```
+
 **jQL**
-*jQL makes you can use SQL-like method to handle the json data*
+
+*jQL makes you able to handle JSON data as same as excel*
 
 For example:
 ```
