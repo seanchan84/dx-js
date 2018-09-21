@@ -27,17 +27,32 @@ if (!document.getdom) {
 }
 if (!elementPrototype.attr) {
 	elementPrototype.attr=function(n,v) {
+		if (isObject(n)) {
+			for (var k in n) this.setAttribute(k, n[k]);
+			return this;
+		}
 		if (typeof v != "undefined") {
 			this.setAttribute(n,v);
 			return this;
 		} else {
-			return this.getAttribute(n);	
+			return this.getAttribute(n);
+		}
+	};
+}
+if (!elementPrototype.css) {
+	elementPrototype.css = function (n, v) {
+		if (typeof v != "undefined") {
+			this.style[n] = v;
+			return this;
+		} else {
+			return this.style[n];
 		}
 	};
 }
 if (!elementPrototype.append) {
 	elementPrototype.append=function(obj) {
 		this.appendChild(obj);
+		if (this.hasOwnProperty("afterAppend")) this.afterAppend();
 		return this;
 	};
 }
@@ -63,35 +78,27 @@ if (!elementPrototype.realLeft) {
 }
 if (!elementPrototype.hasClass) {
 	elementPrototype.hasClass=function(c) {
-		var cn=' '+this.className+' ';
-		return (cn.indexOf(' '+c+' ')>=0)
+		return this.classList.contains(c);
 	};
 }
 if (!elementPrototype.addClass) {
 	elementPrototype.addClass=function(c) {
-		var cn=' '+this.className+' ',cs=[];
-		cs=c.split(" ");
-		for (var i=0;i<cs.length;i++) {
-			if (cn.indexOf(' '+cs[i]+' ') < 0) {
-				c=this.className+' '+c;	
-			}
-		}
-		this.className = c.trim();
+		var cs = c.split(" ");
+		for (var i=0;i<cs.length;i++) this.classList.add(cs[i]);
 		return this
 	};
 }
 if (!elementPrototype.removeClass) {
-	elementPrototype.removeClass=function(c) {
-		var cn=' '+this.className.trim()+' ';
-		console.log(cn);
-		this.className=cn.replace(" "+c+" "," ").trim();
+	elementPrototype.removeClass = function (c) {
+		var cs = c.split(" ");
+		for (var i = 0; i < cs.length; i++) this.classList.remove(cs[i]);
 		return this
 	};
 }
 if (!elementPrototype.swapClass) {
 	elementPrototype.swapClass=function(c,d) {
-		var cn=' '+this.className+' ';
-		this.className=cn.replace(' '+c+' ',' '+d+' ').trim();
+		this.classList.remove(c);
+		this.classList.add(d);
 		return this
 	};
 }
@@ -123,6 +130,36 @@ if (!elementPrototype.addEvent) {
 		return this;
 	}
 }
+// matches polyfill
+this.Element && function (ElementPrototype) {
+	ElementPrototype.matches = ElementPrototype.matches ||
+		ElementPrototype.matchesSelector ||
+		ElementPrototype.webkitMatchesSelector ||
+		ElementPrototype.msMatchesSelector ||
+		function (selector) {
+			var node = this, nodes = (node.parentNode || node.document).querySelectorAll(selector), i = -1;
+			while (nodes[++i] && nodes[i] != node);
+			return !!nodes[i];
+		}
+}(Element.prototype);
+
+// live binding helper using matchesSelector
+/*function live(selector, event, callback, context) {
+	addEvent(context || document, event, function (e) {
+		var found, el = e.target || e.srcElement;
+		while (el && el.matches && el !== context && !(found = el.matches(selector))) el = el.parentElement;
+		if (found) callback.call(el, e);
+	});
+}*/
+
+function live(selector, eventType, callback) {
+	document.addEventListener(eventType, function (event) {
+		var el = event.target, found;
+		while (el && el.matches && !(found = el.matches(selector))) el = el.parentElement;
+		if (found) callback.call(el, event);
+	});
+}
+
 if (!Object.keys) {
 	Object.keys = function(obj) {
     	var keys = [];
@@ -173,6 +210,9 @@ if (typeof console === "undefined" || typeof console.log === "undefined") {
 		alert(log_message);
 	}
 }
+function isObject(o) {
+	return o instanceof Object && o.constructor === Object;
+}
 function isDom(obj) {
   try {
     return obj instanceof HTMLElement;
@@ -186,9 +226,15 @@ function guid() {
     return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
 }
 function uid(l=8) {
-    var ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", r = "";
-    for (var i=0;i<l;i++) r += ALPHABET.charAt(Math.floor(Math.random() * ALPHABET.length));
-    return r;
+	var ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", r = "";
+	for (var i=0;i<l;i++) r += ALPHABET.charAt(Math.floor(Math.random() * ALPHABET.length));
+	return r;
+}
+function htmlDecode(input) {
+	if (input.length<=0) return input;
+	var e = document.createElement('div');
+	e.innerHTML = input;
+	return e.childNodes[0].nodeValue;
 }
 function newdom(tag) {return document.createElement(tag)}
 function getdom(tar) {return (tar[0]==="#") ? document.getElementById(tar.substring(1)) : document.querySelectorAll(tar)}
@@ -208,11 +254,11 @@ function ajax(targetDom,cmd,params,timeout,errmsg) {
 					ps.push(pname+"=");
 				}
 			} else {
-				console.log(params[pname]);
+				console.log("value: (" + (typeof val) +  ")" + val);
 				console.log("Error: Params("+pname+") is 'Undenfined' CANNOT be replaced!");
 			}
 		}
-	}	
+	}
 	var xhr=new XMLHttpRequest();
 	xhr.open('POST', cmd+".php", true);
 	xhr.setRequestHeader("Content-type","application/x-www-form-urlencoded");
@@ -224,7 +270,12 @@ function ajax(targetDom,cmd,params,timeout,errmsg) {
 		if (xhr.readyState==4) {
        		if(xhr.status==200) {
 				try {
-					var tmp = decodeURIComponent(this.responseText);
+					var tmp = this.responseText;
+					try {
+						tmp = decodeURIComponent(tmp);
+					} catch(err) {
+
+					}
 					tmp = tmp.replace(/¤/g,"+").replace(/¶/g," ");
 					targetDom.innerHTML=tmp;
 				} catch (ex) {
@@ -240,6 +291,16 @@ function ajax(targetDom,cmd,params,timeout,errmsg) {
 			xhr.send();
 		}
 	} catch(err) {console.log("fail to send xhr");}
+}
+function ajaxSend(form,script,afterSend) {
+	var es = form.elements, formData = {};
+	for (var k in es) {
+		if ((es[k].name!="") && (es[k].name != "undefined")) formData[es[k].name] = es[k].value;
+	}
+	formData.ajax = true;
+	ajaxGet(guid(),script,formData,function(b) {
+		if (typeof afterSend != "undefined") afterSend(b);
+	});
 }
 function ajaxGet(buffername,cmd,data,fn,timeout) {
 	var b={};
@@ -259,29 +320,70 @@ function ajaxGet(buffername,cmd,data,fn,timeout) {
 		}
 	});
 }
+function ajaxBase64Files(dataurl, cmd, data) {
+	var formdata = new FormData();
+	var params = (data.hasOwnProperty("params")) ? data.params : {};
+	formdata.append("uploadFiles", dataurl);
+
+	for (var k in params) {
+		var p = ((Array.isArray(params[k])) || (typeof params[k] === 'object')) ? JSON.stringify(params[k]) : params[k];
+		formdata.append(k, p);
+	}
+
+	var xhr = new XMLHttpRequest();
+	xhr.open("post", cmd + ".php", true);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState == 4 && xhr.status == 200) {
+			if (data.hasOwnProperty("onload")) data.onload(this.responseText);
+		} else {
+			if (data.hasOwnProperty("onerror")) {
+				data.onerror(this.responseText);
+			} else {
+				console.log("error");
+			}
+		}
+	}
+	xhr.send(formdata);
+}
 function ajaxFiles(domId,cmd,data) {
-	var x = document.getElementById(domId);
+	var x,f=false;
+	if (typeof domId == "string") {
+		x = document.getElementById(domId);
+	} else {
+		f = true;
+		x = domId;
+	}
+
     var formdata = new FormData();
     var params = (data.hasOwnProperty("params")) ? data.params : {};
     for (var i=0;i<x.files.length;i++) {
-	    formdata.append(domId+"["+i+"]", x.files[i]);
+		//formdata.append(domId+"["+i+"]", x.files[i]);
+		formdata.append("uploadFiles[" + i + "]", x.files[i]);		
+	}
+	console.log(x.files[0]);
+    for (var k in params) {
+    	var p = ((Array.isArray(params[k])) || (typeof params[k] === 'object')) ? JSON.stringify(params[k]) : params[k];
+    	formdata.append(k, p);
     }
-    for (var k in params) formdata.append(k, params[k]);
 
     var xhr = new XMLHttpRequest();
 	xhr.open("post", cmd+".php", true);
     xhr.onreadystatechange =function() {
-    	if (xhr.readyState == 4 && xhr.status == 200) {
+		if (xhr.readyState == 4 && xhr.status == 200) {
     		if (data.hasOwnProperty("onload")) data.onload(this.responseText);
         } else {
         	if (data.hasOwnProperty("onerror")) {
-        		data.onerror(this.responseText);
+				data.onerror(this.responseText);
         	} else {
-        		console.log("error");
+				console.log("error");
         	}
         }
     }
 	xhr.send(formdata);
+}
+function ajaxClipboard(data, fn) {
+	var d = (data!="") ? {data:JSON.stringify(data)} : {};
+	ajaxGet(guid(),"script/clipboard",d,fn);
 }
 function yyyymmdd(date,d) {
 	var yyyy = date.getFullYear().toString();
@@ -305,6 +407,19 @@ function fullTime(date) {
     if (MM.length==1) MM="0"+MM;
     if (ss.length==1) ss="0"+ss;
     return yyyy+d+mm+d+dd+" "+HH+d1+MM+d1+ss;
+}
+function addslashes(str) {
+	str = str.replace(/\\/g, '\\');
+	str = str.replace(/\'/g, '\'');
+	str = str.replace(/\"/g, '\"');
+	return str;
+}
+function stripslashes(str) {
+	str = str.replace(/\\'/g, '\'');
+	str = str.replace(/\\"/g, '"');
+	str = str.replace(/\\/g, '');
+	str = str.replace(/\\\\/g, '\\');
+	return str;
 }
 function addEvent(element,type,fn,bool) {
 	var old = element['on' + type] || function() {};
@@ -452,7 +567,7 @@ function isJson(str) {
     }
     return true;
 }
-function getNumber(s) {
+function getNumber(s,nan) {
 	if ((typeof s == "undefined") || (s=="")) return 0;
 	if (!isNaN(s)) return parseFloat(s);
 	var d = s.replace(/[^0-9\.]/g, '');
@@ -468,6 +583,7 @@ function cunit(v,o,n) {
 }
 
 function getNode(obj,n,a) {
+	if (typeof obj == "undefined") return false;
 	var c=obj, nodes = n.split("."), lv=0, r = true;
 	if ((n.indexOf(".") < 0) && (typeof a == "undefined")) return obj.hasOwnProperty(n);
 	while (lv < nodes.length) {
@@ -483,12 +599,135 @@ function getNode(obj,n,a) {
 	return (r) ? c : a;
 }
 
+function msgbox(p,f) {
+	addStyle(".msgbox {display: block;text-align: center;z-index:9999;color:#FFF;font-size:24px;}");
+	addStyle(".fullscreen {position: fixed; top:0px; left:0px; right:0px; bottom:0px; background-color:rgba(0,0,0,0.7);}");
+	addStyle(".msgbox-inner {display: block;text-align: center;margin-top:20%;}");
+	addStyle(".msgctx {display: block;text-align:center;padding:10px;}");
+	addStyle(".msgbtn {margin:5px;}");
+
+	var box = newdom("div").addClass("msgbox").addClass("fullscreen");
+	var innerBox = newdom("div").addClass("msgbox-inner");
+	box.append(innerBox);
+	document.body.append(box);
+
+	var msgCtx = newdom("div").addClass("msgctx").html(getNode(p,"msg","say something..."));
+	innerBox.append(msgCtx);
+
+	switch (getNode(p,"type","")) {
+		case "":			
+			var btnClose = newdom("button").addClass("btn").addClass("msgbtn").addClass("btn-primary").html("Close");
+			btnClose.onclick = function() {
+				box.remove();
+			};
+			innerBox.append(btnClose);
+		break;
+		case "YesAndNo":
+			var btnYes = newdom("button").addClass("btn").addClass("msgbtn").addClass("btn-success").html("Yes");
+			var btnNo = newdom("button").addClass("btn").addClass("msgbtn").addClass("btn-danger").html("No");
+
+			btnYes.onclick = function() {
+				if (p.hasOwnProperty("agree")) p.agree();
+				box.remove();
+			};
+			btnNo.onclick = function () {
+				if (p.hasOwnProperty("sayno")) p.sayno();
+				box.remove();
+			};
+			innerBox.append(btnYes);
+			innerBox.append(btnNo);
+		break;
+		case "OKCancel":
+			var btnYes = newdom("button").addClass("btn").addClass("msgbtn").addClass("btn-success").html("OK");
+			var btnNo = newdom("button").addClass("btn").addClass("msgbtn").addClass("btn-danger").html("Cancel");
+			btnYes.onclick = function() {
+				if (p.hasOwnProperty("agree")) p.agree();
+				box.remove();
+			};
+			btnNo.onclick = function() {
+				box.remove();
+			};
+			innerBox.append(btnYes);
+			innerBox.append(btnNo);
+		break;
+		case "OKOnly":
+			var btnOK = newdom("button").addClass("btn").addClass("msgbtn").addClass("btn-success").html("OK");
+			btnOK.onclick = function() {
+				if (p.hasOwnProperty("agree")) p.agree();
+				box.remove();
+			};
+			innerBox.append(btnOK);
+		break;
+	}
+
+	if (typeof f != "undefined") f();
+}
+
+function getTimeStamp() {
+	var d = new Date();
+	var mm = d.getMonth() + 1;
+	var dd = (d.getDate() >= 10) ? d.getDate() : "0" + d.getDate();
+	var HH = d.getHours(), MM = d.getMinutes(), ss = d.getSeconds();
+
+	if (mm < 10) mm = "0" + mm;
+	if (HH < 10) HH = "0" + HH;
+	if (MM < 10) MM = "0" + MM;
+	if (ss < 10) ss = "0" + ss;
+	return [d.getFullYear(), mm, dd].join('-')+' '+ [HH, MM, ss].join(':');
+}
+function getToday() {
+	var d = new Date();
+	var mm = d.getMonth() + 1;
+	var dd = (d.getDate() >= 10) ? d.getDate() : "0" + d.getDate();
+	if (mm < 10) mm = "0" + mm;
+	return [d.getFullYear(), mm, dd].join('-');
+}
 var jQL = function(j) {
+	if ((j==null) || (typeof j == "undefined")) return "";
 	return {
 		sum:function(x) {
 			var tmp = 0;
+			if (typeof j == "string") {
+				try {
+					j = JSON.parse(j);
+				} catch (err) {
+					console.log("The value is not json");
+					return tmp;
+				}
+			}
 			if (Array.isArray(j)) {
-				for (var i=0;i<j.length;i++) tmp += parseFloat(getNumber(j[i][x]));
+				for (var i=0;i<j.length;i++) tmp += parseFloat(getNumber(j[i][x],0));
+			} else {
+				tmp = parseFloat(getNumber(j[x]));
+			}
+			return tmp;
+		},
+		sumif:function(x,cond) {
+			var tmp = 0;
+			if (typeof j == "string") {
+				try {
+					j = JSON.parse(j);
+				} catch (err) {
+					console.log("The value is not json");
+					return tmp;
+				}
+			}
+			if (Array.isArray(j)) {
+				for (var i=0;i<j.length;i++) {
+					try {
+						cond = cond.replace(new RegExp("`.+`","g"), function(m){
+							return j[i][m.substring(1, m.length - 1)];
+						});
+						if (eval(cond)) {
+							var num = getNumber(j[i][x]);
+							if (isNaN(num)) num = 0;
+							tmp += parseFloat(num);
+						}
+					} catch (err) {
+						console.log("calc cond error");
+						return tmp;
+					}
+				}
 			} else {
 				tmp = parseFloat(getNumber(j[x]));
 			}
@@ -562,6 +801,16 @@ var jQL = function(j) {
 				tmp.push((ln!=empty) ? ln : "");
 			}
 			return tmp;
+		},
+		lookup:function(f,k,kv) {
+			if (Array.isArray(j)) {
+				for (var i=0;i<j.length;i++) {
+					if (j[i][k] == kv) return j[i][f];
+				}
+				return "";
+			} else {
+				return j[f];
+			}
 		}
 	}
 };
