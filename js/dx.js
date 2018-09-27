@@ -42,17 +42,24 @@ if (!elementPrototype.attr) {
 }
 if (!elementPrototype.css) {
 	elementPrototype.css = function (n, v) {
-		if (typeof v != "undefined") {
-			this.style[n] = v;
+		if (typeof n == "object") {
+			for (var k in n) this.style[k] = n[k];
 			return this;
 		} else {
-			return this.style[n];
+			if (typeof v != "undefined") {
+				this.style[n] = v;
+				return this;
+			} else {
+				return this.style[n];
+			}
 		}
 	};
 }
 if (!elementPrototype.append) {
-	elementPrototype.append = function (obj) {
-		this.appendChild(obj);
+	elementPrototype.append = function() {
+		if (arguments.length>0) {
+			for (var i = 0; i < arguments.length; i++) this.appendChild(arguments[i]);
+		}
 		if (this.hasOwnProperty("afterAppend")) this.afterAppend();
 		return this;
 	};
@@ -100,6 +107,12 @@ if (!elementPrototype.swapClass) {
 	elementPrototype.swapClass = function (c, d) {
 		this.classList.remove(c);
 		this.classList.add(d);
+		return this
+	};
+}
+if (!elementPrototype.toggleClass) {
+	elementPrototype.toggleClass = function (c) {
+		this.classList.toggle(c);
 		return this
 	};
 }
@@ -210,6 +223,9 @@ if (typeof console === "undefined" || typeof console.log === "undefined") {
 	console.log = function (log_message) {
 		alert(log_message);
 	}
+}
+function isFunction(x) {
+	return Object.prototype.toString.call(x) == '[object Function]';
 }
 function isObject(o) {
 	return o instanceof Object && o.constructor === Object;
@@ -784,6 +800,122 @@ var jQL = function (j) {
 				return "";
 			} else {
 				return j[f];
+			}
+		},
+		get: function () {
+			if (typeof j == "string") {
+				try {
+					j = JSON.parse(j);
+				} catch (err) {
+					console.log("The value is not json");
+					return null;
+				}
+			}
+			if (!Array.isArray(j) && (typeof j != "object")) return null;
+			return j;
+		},
+		cols: function () {
+			if ((j != null) && (j != "")) {
+				if (typeof j == "string") {
+					try {
+						j = JSON.parse(j);
+					} catch (err) {
+						console.log("The value is not json");
+						return null;
+					}
+				}
+			}
+			if (Array.isArray(j)) {
+				var keys = {};
+				for (var i = 0; i < j.length; i++) { //collect columns
+					for (var k in j[i]) keys[k] = 0;
+				}
+				return Object.keys(keys);
+			} else {
+				try {
+					return Object.keys(j);
+				} catch (err) {
+					return null;
+				}
+			}
+		},
+		isArray: function() {
+			return Array.isArray(j);
+		},
+		view: function(v,cols) {
+			switch (v) {
+				case "table":
+				default:
+					if (typeof cols == "undefined") cols = jQL(j).cols();
+					if (cols == null) return "<p>Data is not JSON</p>";
+					var t = newdom("table");
+					var th = t.createTHead();
+					var thr = th.insertRow(0);
+					var tb = newdom("tbody");
+
+					for (var i = 0; i < cols.length; i++) {
+						var td = thr.insertCell();
+						console.log(typeof cols[i] == "object");
+						if (typeof cols[i] == "object") {							
+							if (cols[i].hasOwnProperty("name")) td.addClass("col_" + cols[i].name);
+							if (cols[i].hasOwnProperty("title")) td.html(cols[i].title);
+							if (cols[i].hasOwnProperty("attr")) td.attr(cols[i].attr);
+							if (cols[i].hasOwnProperty("class")) td.addClass(cols[i].class);
+							if (cols[i].hasOwnProperty("css")) td.css(cols[i].css);
+						} else {
+							td.html(cols[i]);
+						}
+					}
+					
+					if (Array.isArray(j)) { //is Array
+						for (var i = 0; i < j.length; i++) {
+							var tr = tb.insertRow();
+							tr.data = j[i];
+							for (var k = 0; k < cols.length; k++) {
+								var td = tr.insertCell();
+								if (typeof cols[k] == "object") {
+									var v = (j[i].hasOwnProperty(cols[k].name)) ? j[i][cols[k].name] : "";
+									if (cols[k].hasOwnProperty("content")) {
+										if (typeof cols[k].content == "string") {
+											td.html(cols[k].content);
+										} else {
+											td.append(cols[k].content(v));
+										}
+									} else {
+										td.html(v);
+									}
+								} else {
+									if (j[i].hasOwnProperty(cols[k])) td.html(j[i][cols[k]]);
+								}
+							}
+						}
+					} else {//is Object
+						for (var k = 0; k < cols.length; k++) {
+							var tr = tb.insertRow();
+							var td = tr.insertCell();
+							//need fix!!!
+							if (typeof cols[k] == "object") {
+								if (j.hasOwnProperty(cols[k].name)) {
+									console.log(cols[k].name);
+									if (typeof cols[k].hasOwnProperty("content")) {
+										if (typeof cols[k].content == "string") {
+											td.html(cols[k].content);
+										} else {
+											td.append(cols[k].content());
+										}
+									} else {
+										td.html("");
+									}
+								}
+							} else {
+								td.html(j[k]);
+							}
+						}
+					}
+					t.append(tb);
+
+					return t;
+					break;
 			}
 		}
 	}
