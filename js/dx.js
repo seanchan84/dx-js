@@ -57,12 +57,31 @@ if (!elementPrototype.css) {
 }
 if (!elementPrototype.append) {
 	elementPrototype.append = function() {
-		if (arguments.length>0) {
-			for (var i = 0; i < arguments.length; i++) this.appendChild(arguments[i]);
+        if (arguments.length > 0) {
+            var df = document.createDocumentFragment();
+			for (var i = 0; i < arguments.length; i++) {
+                var a = arguments[i];
+                df.appendChild((typeof a == "string") ? document.createTextNode(a) : a);
+            }
+            this.appendChild(df);
 		}
 		if (this.hasOwnProperty("afterAppend")) this.afterAppend();
 		return this;
 	};
+}
+if (!elementPrototype.prepend) {
+    elementPrototype.prepend = function () {
+        if (arguments.length > 0) {
+            var df = document.createDocumentFragment();
+            for (var i = 0; i < arguments.length; i++) {
+                var a = arguments[i];
+                df.appendChild((typeof a == "string") ? document.createTextNode(a) : a);
+            }
+            this.insertBefore(df, this.firstChild);
+        }
+        if (this.hasOwnProperty("afterAppend")) this.afterAppend();
+        return this;
+    };
 }
 if (!elementPrototype.html) {
 	elementPrototype.html = function (ctx) {
