@@ -242,7 +242,8 @@ function guid() {
 	var S4 = function () { return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1); };
 	return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4());
 }
-function uid(l = 8) {
+function uid(l) {
+    if (typeof l == "undefined") l=8;
 	var ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", r = "";
 	for (var i = 0; i < l; i++) r += ALPHABET.charAt(Math.floor(Math.random() * ALPHABET.length));
 	return r;
