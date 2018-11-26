@@ -551,6 +551,12 @@ addWindowEvent("load", function () {
 		})();
 	}
 });
+
+function ready() {
+    alert('DOM is ready');
+}
+document.addEventListener("DOMContentLoaded", ready);
+
 function addOnload(fn) {
 	if (window.addEventListener) {
 		window.addEventListener("load", fn, false);
