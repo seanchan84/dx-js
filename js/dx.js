@@ -20,17 +20,16 @@ window.mobilecheck = function () {
 	return check;
 }
 
-
 Array.prototype.clone = function () {
-    let t = [];
-    for (let i=0;i<this.length;i++) t.push(this[i]);
+    var t = [];
+    for (var i=0;i<this.length;i++) t.push(this[i]);
     return t;
 };
 Array.prototype.section = function (s,e) {
-    let t = [];
+    var t = [];
     if (e < 0) e = this.length + e;
     if (e<s) return t;
-    for (let i = s; i < e; i++) t.push(this[i]);
+    for (var i = s; i < e; i++) t.push(this[i]);
     return t;
 };
 Array.prototype.merge = function (a) {
@@ -39,7 +38,7 @@ Array.prototype.merge = function (a) {
 };
 Array.prototype.implode = function (d) {
     if (this.length <= 1) return this[0];
-    let t = this[0];    
+    var t = this[0];    
     for (var i=1;i<this.length;i++) t += d + this[i];
     return t;
 };
