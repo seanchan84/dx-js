@@ -12,6 +12,30 @@ var isIE9OrLater = (isIE9 || isIE10 || isIE11);
 var elementPrototype = typeof HTMLElement !== "undefined" ? HTMLElement.prototype : Element.prototype;
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 
+var Cookie = {
+	Create: function (name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toGMTString();
+            }
+            document.cookie = name + "=" + value + expires + "; path=/";
+        },
+        Read: function (name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(";");
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == " ") c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        },
+        Erase: function (name) {
+            Cookie.Create(name, "", -1);
+        }
+};
 window.innerHeight = window.innerHeight || document.documentElement.clientHeight;
 window.innerWidth = window.innerWidth || document.documentElement.clientWidth;
 window.mobilecheck = function () {
